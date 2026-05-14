@@ -1,0 +1,12 @@
+pydantic>=2.5
+pyyaml>=6.0
+requests>=2.31
+beautifulsoup4>=4.12
+
+# Reddit (only needed if enabling reddit source post-approval)
+praw>=7.7
+
+# LLM provider clients — install whichever you use
+google-genai>=0.3
+openai>=1.50
+anthropic>=0.40

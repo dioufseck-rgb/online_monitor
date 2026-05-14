@@ -1,0 +1,140 @@
+# Voice-of-Customer Monitor — example config. Copy to config.yaml and fill in.
+
+# The brand the report writes about. Comparison reports center this brand
+# (named first in tables, framed in the executive read). Override at runtime
+# with `python -m src.compare --target <brand>`.
+target_brand: nfcu
+
+# LLM provider — switch this and nothing else changes downstream.
+provider:
+  name: gemini  # gemini | azure_openai | anthropic
+  model: gemini-2.5-flash-lite  # cheap + fast; bump to gemini-2.5-flash if quality issues
+  api_key: ${GEMINI_API_KEY}
+
+  # Azure OpenAI (uncomment when running on enterprise infra)
+  # name: azure_openai
+  # deployment: gpt-4o-mini
+  # endpoint: ${AZURE_OPENAI_ENDPOINT}
+  # api_key: ${AZURE_OPENAI_API_KEY}
+  # api_version: "2024-10-21"
+
+# Brands to monitor. Each runs independently; reports are per-brand.
+# Brands declare their `domain`, which controls topic schema and classifier prompts:
+#   - financial_services: banks, credit unions, fintech (default if omitted)
+#   - higher_education: colleges and universities
+brands:
+  # Financial services
+  - name: nfcu
+    domain: financial_services
+    terms:
+      - "navy federal"
+      - "navyfederal"
+      - "nfcu"
+      - "navy fcu"
+  - name: usaa
+    domain: financial_services
+    terms:
+      - "usaa"
+      - "united services automobile"
+  - name: penfed
+    domain: financial_services
+    terms:
+      - "penfed"
+      - "pentagon federal"
+      - "penfed credit union"
+  - name: chase
+    domain: financial_services
+    terms:
+      - "chase bank"
+      - "jpmorgan chase"
+      - "chase credit"
+  - name: bofa
+    domain: financial_services
+    terms:
+      - "bank of america"
+      - "bofa"
+
+  # Higher education — Virginia and DC-area universities.
+  # Term selection is deliberately full-name-heavy to suppress ambiguity for
+  # short initialisms (GW, ODU, etc.); the relevance filter will still cull noise.
+  - name: gmu
+    domain: higher_education
+    terms:
+      - "george mason university"
+      - "george mason"
+      - "gmu"
+      - "mason nation"
+  - name: uva
+    domain: higher_education
+    terms:
+      - "university of virginia"
+      - "uva"
+      - "virginia cavaliers"
+  - name: vt
+    domain: higher_education
+    terms:
+      - "virginia tech"
+      - "vt hokies"
+      - "virginia tech hokies"
+  - name: odu
+    domain: higher_education
+    terms:
+      - "old dominion university"
+      - "odu monarchs"
+      - "old dominion"
+  - name: georgetown
+    domain: higher_education
+    terms:
+      - "georgetown university"
+      - "georgetown hoyas"
+  - name: gwu
+    domain: higher_education
+    terms:
+      - "george washington university"
+      - "the gw university"
+      - "gw hatchet"
+
+# Sources. Serper is the primary multi-source discovery layer.
+# Reddit collector is included but disabled by default — flip to true once
+# the non-commercial Data API application is approved.
+sources:
+  serper:
+    enabled: true
+    api_key: ${SERPER_API_KEY}
+    num_results: 10        # 1 credit per call at 10 results (Google caps near 10 anyway)
+    time_window: "qdr:w"   # qdr:d/w/m/y for day/week/month/year (used when dayrange=false)
+    rate_limit_sleep: 0.1
+    # query_templates: null  # uses sensible defaults; override to customize
+
+    # v1.6 query strategies — measured to give 5-7× more URLs and 60-70%
+    # higher customer-voice density than the v1.5 default.
+    intent_queries: true   # Run intent-keyword queries (complaint, fee, outage,
+                           # etc.) on intent_eligible templates. Intents are
+                           # configured in src/domains.py per domain.
+    dayrange: true         # Fan out queries across past N days via cdr:1 instead
+                           # of a single weekly window. Applied only to templates
+                           # marked dayrange_eligible (Reddit, news, general_web).
+    dayrange_days: 7       # Number of past days to query when dayrange=true
+
+  reddit:
+    enabled: false  # flip to true when non-commercial application is approved
+    client_id: ${REDDIT_CLIENT_ID}
+    client_secret: ${REDDIT_CLIENT_SECRET}
+    user_agent: "voc-monitor/0.1 (research)"
+    username: ${REDDIT_USERNAME}
+    password: ${REDDIT_PASSWORD}
+    max_per_query: 250
+
+# Full-text enrichment (web_fetch high-priority mentions).
+enrich:
+  enabled: true
+  max_fetches_per_run: 50          # per brand per run
+  per_domain_min_interval: 1.0     # seconds — be polite
+  timeout: 15
+
+# Classification concurrency. Paid tier (Tier 1+) can comfortably handle 8-16
+# workers on Flash/Flash-Lite (300 RPM = 5/sec). Bump higher if you have headroom.
+classify_workers: 8
+
+# SQLite store path (relative to repo root)
+store_path: data/mentions.db
