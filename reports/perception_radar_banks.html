@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFCU — Cohort Perception Standing — Week of 2026-05-03</title>
+<style>
+  :root {
+    --ink: #0f172a;
+    --ink-2: #1f2937;
+    --ink-3: #475569;
+    --ink-muted: #64748b;
+    --rule: #e2e8f0;
+    --rule-soft: #f1f5f9;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --accent: #1d4ed8;
+    --warn: #b45309;
+    --good: #15803d;
+    --bad: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 1080px; margin: 0 auto; padding: 36px 28px 80px; }
+
+  header.page-head {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+  }
+  .page-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+  }
+  .page-title {
+    font-size: 26px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.3px;
+  }
+  .page-subtitle {
+    font-size: 14px;
+    color: var(--ink-muted);
+    margin: 0;
+  }
+
+  .section-header {
+    margin: 36px 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .section-header h2 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+  }
+
+  .radar-wrap {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    padding: 28px 28px 24px;
+    margin: 0 0 18px;
+  }
+  .radar-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 32px;
+    align-items: center;
+  }
+  .radar-svg-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .radar-svg {
+    max-width: 100%;
+    height: auto;
+  }
+  .radar-legend h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 14px;
+  }
+  .radar-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .legend-swatch {
+    width: 24px;
+    height: 12px;
+    border-radius: 2px;
+  }
+  .legend-swatch.target {
+    background: rgba(29, 78, 216, 0.20);
+    border: 2px solid var(--accent);
+  }
+  .legend-swatch.cohort {
+    background: rgba(100, 116, 139, 0.10);
+    border: 2px dashed var(--ink-muted);
+  }
+  .radar-reading {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-size: 13.5px;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+
+  /* Dimension bars */
+  .dim-row {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    padding: 16px 22px;
+    margin-bottom: 8px;
+    display: grid;
+    grid-template-columns: 220px 1fr 140px;
+    gap: 22px;
+    align-items: center;
+  }
+  .dim-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .dim-name .low-n {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--warn);
+  }
+  .dim-desc {
+    font-size: 11.5px;
+    color: var(--ink-muted);
+    font-weight: 400;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .dim-bar-container {
+    position: relative;
+    height: 34px;
+  }
+  .dim-bar-track {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: var(--rule-soft);
+    border-radius: 4px;
+  }
+  .dim-bar-axis-labels {
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .dim-median {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--ink-muted);
+  }
+  .dim-median::after {
+    content: "median";
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .dim-peer {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ink-muted);
+    opacity: 0.5;
+    border: 2px solid var(--card);
+  }
+  .dim-target {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--card);
+    box-shadow: 0 0 0 1.5px var(--accent);
+    z-index: 2;
+  }
+  .dim-verdict {
+    font-size: 12px;
+    color: var(--ink-3);
+    text-align: right;
+    font-weight: 500;
+  }
+  .dim-verdict.bad { color: var(--bad); font-weight: 600; }
+  .dim-verdict.warn { color: var(--warn); font-weight: 600; }
+  .dim-verdict.good { color: var(--good); font-weight: 600; }
+
+  .footer-note {
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 880px) {
+    .radar-grid { grid-template-columns: 1fr; }
+    .dim-row { grid-template-columns: 1fr; gap: 10px; }
+    .dim-verdict { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="page-head">
+    <div class="page-kicker">Cohort Perception Standing · Week of 2026-05-03</div>
+    <h1 class="page-title">NFCU</h1>
+    <p class="page-subtitle">Position relative to 5 peer institutions across six perception dimensions. 223 customer-voice mentions back the NFCU scoring this week.</p>
+  </header>
+
+  <div class="section-header">
+    <h2>Six-axis view</h2>
+  </div>
+
+  <div class="radar-wrap">
+    <div class="radar-grid">
+      <div class="radar-svg-container">
+        
+    <svg class="radar-svg" viewBox="-30 -10 520 470" width="520" height="470"
+         aria-label="Cohort perception radar">
+      <g>
+
+        <!-- Grid rings (5 concentric hexagons) -->
+        <g stroke="#e2e8f0" fill="none" stroke-width="1">
+          <polygon points="220.0,50.0 367.2,135.0 367.2,305.0 220.0,390.0 72.8,305.0 72.8,135.0" />
+          <polygon points="220.0,84.0 337.8,152.0 337.8,288.0 220.0,356.0 102.2,288.0 102.2,152.0" />
+          <polygon points="220.0,118.0 308.3,169.0 308.3,271.0 220.0,322.0 131.7,271.0 131.7,169.0" />
+          <polygon points="220.0,152.0 278.9,186.0 278.9,254.0 220.0,288.0 161.1,254.0 161.1,186.0" />
+          <polygon points="220.0,186.0 249.4,203.0 249.4,237.0 220.0,254.0 190.6,237.0 190.6,203.0" />
+        </g>
+
+        <!-- Axis spokes -->
+        <g stroke="#cbd5e1" stroke-width="1">
+          <line x1="220" y1="220" x2="220.0" y2="50.0" />
+          <line x1="220" y1="220" x2="367.2" y2="135.0" />
+          <line x1="220" y1="220" x2="367.2" y2="305.0" />
+          <line x1="220" y1="220" x2="220.0" y2="390.0" />
+          <line x1="220" y1="220" x2="72.8" y2="305.0" />
+          <line x1="220" y1="220" x2="72.8" y2="135.0" />
+        </g>
+
+        <!-- Cohort median polygon (dashed gray) -->
+        <polygon points="220.0,185.1 325.6,159.0 271.5,249.7 220.0,269.2 81.4,300.0 103.9,153.0"
+                fill="rgba(100, 116, 139, 0.10)"
+                stroke="#64748b" stroke-width="1.5"
+                stroke-dasharray="5,4" />
+
+        <!-- Target brand polygon -->
+        <polygon points="220.0,220.0 220.0,220.0 278.7,253.9 220.0,267.3 90.1,295.0 72.8,135.0"
+                fill="rgba(29, 78, 216, 0.20)"
+                stroke="#1d4ed8" stroke-width="2.5" />
+
+        <!-- Target vertex dots -->
+        <circle cx="220.0" cy="220.0" r="5" fill="#1d4ed8" />
+        <circle cx="220.0" cy="220.0" r="5" fill="#1d4ed8" />
+        <circle cx="278.7" cy="253.9" r="5" fill="#1d4ed8" />
+        <circle cx="220.0" cy="267.3" r="5" fill="#1d4ed8" />
+        <circle cx="90.1" cy="295.0" r="5" fill="#1d4ed8" />
+        <circle cx="72.8" cy="135.0" r="5" fill="#1d4ed8" />
+
+        <!-- Axis labels -->
+        <text x="220.0" y="12.0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1f2937">FRAUD HANDLING</text>
+        <text x="393.2" y="124.0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1f2937">FEE FAIRNESS</text>
+        <text x="393.2" y="324.0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1f2937">SERVICE RELIABILITY</text>
+        <text x="220.0" y="434.0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1f2937">PRODUCT</text>
+        <text x="46.8" y="324.0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1f2937">FAIRNESS DISCOURSE</text>
+        <text x="46.8" y="124.0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1f2937">CUSTOMER SERVICE</text>
+
+      </g>
+    </svg>
+
+      </div>
+      <div class="radar-legend">
+        <h4>This week's standing</h4>
+        <div class="radar-legend-row">
+          <span class="legend-swatch target"></span>
+          <span>NFCU</span>
+        </div>
+        <div class="radar-legend-row">
+          <span class="legend-swatch cohort"></span>
+          <span>Peer cohort median (6 brands)</span>
+        </div>
+        <div class="radar-reading">
+          NFCU stands below cohort on fraud handling, and fee fairness. ; above cohort on customer service.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <h2>Per-dimension detail</h2>
+  </div>
+
+  
+        <div class="dim-row">
+          <div>
+            <div class="dim-name">Fraud handling</div>
+            <div class="dim-desc">21 negative fraud_claim mentions, severity 1.00</div>
+          </div>
+          <div class="dim-bar-container">
+            <div class="dim-bar-track"></div>
+            <div class="dim-median" style="left: 20.6%;"></div>
+            <div class="dim-peer" style="left: 14.4%;"></div><div class="dim-peer" style="left: 5.4%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 63.3%;"></div><div class="dim-peer" style="left: 26.7%;"></div>
+            <div class="dim-target" style="left: 0.0%;"></div>
+            <div class="dim-bar-axis-labels">
+              <span>Worse</span>
+              <span>Better</span>
+            </div>
+          </div>
+          <div class="dim-verdict bad">
+            Below cohort
+          </div>
+        </div>
+
+        <div class="dim-row">
+          <div>
+            <div class="dim-name">Fee fairness</div>
+            <div class="dim-desc">6 negative fee_dispute mentions, severity 0.46</div>
+          </div>
+          <div class="dim-bar-container">
+            <div class="dim-bar-track"></div>
+            <div class="dim-median" style="left: 71.8%;"></div>
+            <div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 17.4%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 43.5%;"></div>
+            <div class="dim-target" style="left: 0.0%;"></div>
+            <div class="dim-bar-axis-labels">
+              <span>Worse</span>
+              <span>Better</span>
+            </div>
+          </div>
+          <div class="dim-verdict bad">
+            Below cohort
+          </div>
+        </div>
+
+        <div class="dim-row">
+          <div>
+            <div class="dim-name">Service reliability</div>
+            <div class="dim-desc">3 negative outage mentions, severity 0.42</div>
+          </div>
+          <div class="dim-bar-container">
+            <div class="dim-bar-track"></div>
+            <div class="dim-median" style="left: 35.0%;"></div>
+            <div class="dim-peer" style="left: 0.0%;"></div><div class="dim-peer" style="left: 22.3%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 30.1%;"></div>
+            <div class="dim-target" style="left: 39.9%;"></div>
+            <div class="dim-bar-axis-labels">
+              <span>Worse</span>
+              <span>Better</span>
+            </div>
+          </div>
+          <div class="dim-verdict ">
+            At cohort median
+          </div>
+        </div>
+
+        <div class="dim-row">
+          <div>
+            <div class="dim-name">Product</div>
+            <div class="dim-desc">12 negative product_complaint mentions, severity 0.69</div>
+          </div>
+          <div class="dim-bar-container">
+            <div class="dim-bar-track"></div>
+            <div class="dim-median" style="left: 28.9%;"></div>
+            <div class="dim-peer" style="left: 30.0%;"></div><div class="dim-peer" style="left: 0.0%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 41.5%;"></div><div class="dim-peer" style="left: 25.7%;"></div>
+            <div class="dim-target" style="left: 27.8%;"></div>
+            <div class="dim-bar-axis-labels">
+              <span>Worse</span>
+              <span>Better</span>
+            </div>
+          </div>
+          <div class="dim-verdict ">
+            At cohort median
+          </div>
+        </div>
+
+        <div class="dim-row">
+          <div>
+            <div class="dim-name">Fairness discourse</div>
+            <div class="dim-desc">norm-claim share 1.3% of customer voice (n=223)</div>
+          </div>
+          <div class="dim-bar-container">
+            <div class="dim-bar-track"></div>
+            <div class="dim-median" style="left: 94.1%;"></div>
+            <div class="dim-peer" style="left: 85.6%;"></div><div class="dim-peer" style="left: 0.0%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 100.0%;"></div><div class="dim-peer" style="left: 100.0%;"></div>
+            <div class="dim-target" style="left: 88.3%;"></div>
+            <div class="dim-bar-axis-labels">
+              <span>Worse</span>
+              <span>Better</span>
+            </div>
+          </div>
+          <div class="dim-verdict warn">
+            Slightly below cohort
+          </div>
+        </div>
+
+        <div class="dim-row">
+          <div>
+            <div class="dim-name">Customer service</div>
+            <div class="dim-desc">15 positive praise mentions, severity 0.11</div>
+          </div>
+          <div class="dim-bar-container">
+            <div class="dim-bar-track"></div>
+            <div class="dim-median" style="left: 78.8%;"></div>
+            <div class="dim-peer" style="left: 74.8%;"></div><div class="dim-peer" style="left: 90.1%;"></div><div class="dim-peer" style="left: 0.0%;"></div><div class="dim-peer" style="left: 0.0%;"></div><div class="dim-peer" style="left: 82.9%;"></div>
+            <div class="dim-target" style="left: 100.0%;"></div>
+            <div class="dim-bar-axis-labels">
+              <span>Worse</span>
+              <span>Better</span>
+            </div>
+          </div>
+          <div class="dim-verdict good">
+            Above cohort
+          </div>
+        </div>
+
+
+  <div class="footer-note">
+    <p>Scores are normalized cohort-relative: 0 maps to the worst score across the 6 brands on that dimension, 1 maps to the best. Cohort median is the median computed across all 6 brands. Each dimension's underlying measurement is shown in the per-dimension description.</p>
+  </div>
+
+</div>
+</body>
+</html>

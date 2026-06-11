@@ -288,6 +288,209 @@ def _compute_standings(
 
 
 # ---------------------------------------------------------------------------
+# Perception dimensions — per-axis cohort positioning for the radar view
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PerceptionDimension:
+    """One axis of perception standing for a single brand.
+
+    Each dimension is computed from cluster data (which preserves polarity)
+    plus claim-type distribution, then normalized cohort-relative so the
+    radar's max-radius corresponds to the cohort's best score on that axis,
+    not an absolute reference.
+
+    `raw_value` is the underlying measurement (e.g. severity of fee_dispute:neg
+    cluster). `score` is the normalized 0-1 value where 1 = best in cohort,
+    0 = worst in cohort. The radar plots `score`.
+
+    `direction` documents which way "raw" maps to "score":
+      - lower_is_better: smaller raw_value -> higher score (e.g. fraud severity)
+      - higher_is_better: larger raw_value -> higher score (e.g. praise concentration)
+    """
+    brand: str
+    dimension: str           # human-readable axis name
+    raw_value: float         # underlying measurement, 0-1
+    score: float             # normalized cohort-relative score, 0-1
+    direction: str           # 'lower_is_better' | 'higher_is_better'
+    sample_n: int            # customer-voice n that backs this dimension
+    rationale: str           # one-line explanation of the raw_value
+
+
+def _cluster_severity(report: WeeklyReport, cluster_id: str) -> float:
+    """Return the severity of a specific cluster, or 0.0 if absent."""
+    for c in report.clusters:
+        if c.cluster_id == cluster_id:
+            return c.severity
+    return 0.0
+
+
+def _cluster_mention_count(report: WeeklyReport, cluster_id: str) -> int:
+    """Return the size of a specific cluster, or 0 if absent."""
+    for c in report.clusters:
+        if c.cluster_id == cluster_id:
+            return len(c.mention_ids)
+    return 0
+
+
+# Dimension definitions: (axis_label, computation_fn, direction, rationale_fn)
+# Each computation_fn takes a WeeklyReport and returns a raw value in [0, 1].
+# Each rationale_fn takes a WeeklyReport and returns a one-line explanation.
+_PERCEPTION_DIMENSIONS = [
+    (
+        "Fraud handling",
+        lambda r: _cluster_severity(r, "fraud_claim:neg"),
+        "lower_is_better",
+        lambda r: (
+            f"{_cluster_mention_count(r, 'fraud_claim:neg')} negative fraud_claim "
+            f"mentions, severity {_cluster_severity(r, 'fraud_claim:neg'):.2f}"
+        ),
+    ),
+    (
+        "Fee fairness",
+        lambda r: _cluster_severity(r, "fee_dispute:neg"),
+        "lower_is_better",
+        lambda r: (
+            f"{_cluster_mention_count(r, 'fee_dispute:neg')} negative fee_dispute "
+            f"mentions, severity {_cluster_severity(r, 'fee_dispute:neg'):.2f}"
+        ),
+    ),
+    (
+        "Service reliability",
+        lambda r: _cluster_severity(r, "outage_or_service_issue:neg"),
+        "lower_is_better",
+        lambda r: (
+            f"{_cluster_mention_count(r, 'outage_or_service_issue:neg')} negative "
+            f"outage mentions, severity "
+            f"{_cluster_severity(r, 'outage_or_service_issue:neg'):.2f}"
+        ),
+    ),
+    (
+        "Product",
+        lambda r: _cluster_severity(r, "product_complaint:neg"),
+        "lower_is_better",
+        lambda r: (
+            f"{_cluster_mention_count(r, 'product_complaint:neg')} negative "
+            f"product_complaint mentions, severity "
+            f"{_cluster_severity(r, 'product_complaint:neg'):.2f}"
+        ),
+    ),
+    (
+        "Fairness discourse",
+        lambda r: _rightness_share(r.validity_claim_distribution),
+        "lower_is_better",
+        lambda r: (
+            f"norm-claim share {_rightness_share(r.validity_claim_distribution)*100:.1f}% "
+            f"of customer voice "
+            f"(n={sum(r.validity_claim_distribution.values())})"
+        ),
+    ),
+    (
+        "Customer service",
+        lambda r: _cluster_severity(r, "praise:pos"),
+        "higher_is_better",
+        lambda r: (
+            f"{_cluster_mention_count(r, 'praise:pos')} positive praise mentions, "
+            f"severity {_cluster_severity(r, 'praise:pos'):.2f}"
+        ),
+    ),
+]
+
+
+def compute_perception_dimensions(
+    reports: dict[str, WeeklyReport],
+) -> dict[str, list[PerceptionDimension]]:
+    """Compute per-brand-per-dimension scores, normalized cohort-relative.
+
+    Returns a dict mapping brand -> list of PerceptionDimension (one per axis).
+    Each brand's list contains the same axes in the same order.
+
+    Normalization strategy: cohort-relative min-max.
+      - For lower_is_better dims: score = 1 - (raw - min) / (max - min)
+      - For higher_is_better dims: score = (raw - min) / (max - min)
+      - When the cohort has identical values on a dimension (max == min),
+        all brands get score 0.5 (uninformative, but well-defined).
+
+    The output is suitable for direct rendering as radar polygon vertices.
+    """
+    if not reports:
+        return {}
+
+    # Compute raw values for every (brand, dimension) pair
+    raw_by_brand: dict[str, list[tuple[str, float, str, int, str]]] = {}
+    # Track the min/max of each dimension across the cohort
+    dim_min: dict[str, float] = {}
+    dim_max: dict[str, float] = {}
+
+    for brand, report in reports.items():
+        dims_for_brand: list[tuple[str, float, str, int, str]] = []
+        for axis, value_fn, direction, rationale_fn in _PERCEPTION_DIMENSIONS:
+            raw = value_fn(report)
+            rationale = rationale_fn(report)
+            dims_for_brand.append((axis, raw, direction, report.total_customer_mentions, rationale))
+
+            if axis not in dim_min or raw < dim_min[axis]:
+                dim_min[axis] = raw
+            if axis not in dim_max or raw > dim_max[axis]:
+                dim_max[axis] = raw
+        raw_by_brand[brand] = dims_for_brand
+
+    # Normalize each (brand, dimension) to 0-1 score
+    out: dict[str, list[PerceptionDimension]] = {}
+    for brand, dims_for_brand in raw_by_brand.items():
+        result: list[PerceptionDimension] = []
+        for axis, raw, direction, sample_n, rationale in dims_for_brand:
+            lo, hi = dim_min[axis], dim_max[axis]
+            if hi - lo < 1e-9:
+                # Cohort identical on this axis — uninformative, use 0.5
+                score = 0.5
+            else:
+                normalized = (raw - lo) / (hi - lo)  # 0 = cohort-low, 1 = cohort-high
+                if direction == "lower_is_better":
+                    score = 1.0 - normalized
+                else:
+                    score = normalized
+            result.append(PerceptionDimension(
+                brand=brand,
+                dimension=axis,
+                raw_value=raw,
+                score=score,
+                direction=direction,
+                sample_n=sample_n,
+                rationale=rationale,
+            ))
+        out[brand] = result
+    return out
+
+
+def cohort_median_dimensions(
+    perception_by_brand: dict[str, list[PerceptionDimension]],
+) -> list[tuple[str, float]]:
+    """Compute the cohort median score per dimension.
+
+    Returns a list of (dimension_name, median_score) tuples in the same
+    order as PERCEPTION_DIMENSIONS, ready to be plotted as the reference
+    polygon on the radar.
+    """
+    if not perception_by_brand:
+        return []
+    # Use any brand to get the axis order
+    axes = [d.dimension for d in next(iter(perception_by_brand.values()))]
+    medians: list[tuple[str, float]] = []
+    for axis_idx, axis_name in enumerate(axes):
+        scores = [perception_by_brand[b][axis_idx].score
+                  for b in perception_by_brand]
+        sorted_scores = sorted(scores)
+        n = len(sorted_scores)
+        if n % 2 == 1:
+            median = sorted_scores[n // 2]
+        else:
+            median = (sorted_scores[n // 2 - 1] + sorted_scores[n // 2]) / 2
+        medians.append((axis_name, median))
+    return medians
+
+
+# ---------------------------------------------------------------------------
 # Executive read — deterministic template + optional LLM enrichment
 # ---------------------------------------------------------------------------
 
